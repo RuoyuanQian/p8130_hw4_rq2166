@@ -1,8 +1,8 @@
 ---
-title: "Untitled"
+title: " p8130_hw4_rq2166"
 author: "Ruoyuan Qian"
 date: "2019/11/12"
-output: html_document
+output: word_document
 ---
 
 ```{r setup, include=FALSE}
@@ -14,7 +14,7 @@ library(arsenal)
 library(ggplot2)
 ```
 
-# Problem 1
+# Problem 3
 ```{r}
 brain = read_excel("data\\Brain.xlsx") %>% 
    janitor::clean_names()
@@ -185,6 +185,8 @@ anova(reg1,reg2)
 We reject the null and conclude that model with `comp_bin` is superior, so it is DXXXable to add `comp_bin` variable into the model.
 
 ## f)
+
+### i)
 ```{r}
 reg_m = lm(log_totalcost ~ e_rvisits + age + gender + duration, heart_fill)
 summary(reg_m)
