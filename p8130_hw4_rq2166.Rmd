@@ -1,0 +1,116 @@
+---
+title: "Untitled"
+author: "Ruoyuan Qian"
+date: "2019/11/12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(arsenal)
+library(ggplot2)
+```
+
+# Problem 1
+```{r}
+brain = read_excel("data\\Brain.xlsx") %>% 
+   janitor::clean_names()
+```
+
+## a)
+```{r}
+brain_non = 
+  brain %>% 
+  filter(!(species == "Homo sapiens"))
+
+fit = lm(glia_neuron_ratio ~ ln_brain_mass,brain_non) 
+summary(fit)
+```
+
+## b)
+```{r}
+coef = summary(fit)$coefficients[2,1]
+err  = summary(fit)$coefficients[1,1]
+
+ln_brain_mass_human = 
+  brain %>% 
+  filter(species == "Homo sapiens") %>% 
+  pull(ln_brain_mass)
+
+
+glia_human = coef*ln_brain_mass_human + err
+```
+## c)
+ using PI
+ 
+## d)
+```{r}
+brain_human = 
+  brain %>% 
+  filter(species == "Homo sapiens")
+
+pred_fit <- predict.lm(fit, interval="prediction") 
+PI_all <- data.frame(cbind(brain$ln_brain_mass,
+                           brain$glia_neuron_ratio,
+                           pred_fit))
+
+human_PI_lwr = PI_all[[1,4]]
+human_PI_upr = PI_all[[1,5]]
+
+
+human_PI_upr > brain_human$glia_neuron_ratio
+```
+
+Yes, the upper bound of prediction for glia_neuron_ratio of human is smaller than the observed value, which means the human brain has excessive glia_neuron_ratio than other specise. 
+
+## e) 
+
+
+Compared to data of other species, human data is considered to be an outlier and would affect the regression if it was used to fit the model.
+
+# Problem 4
+
+```{r}
+heart = read_csv("data\\HeartDisease.csv") %>% 
+   janitor::clean_names() %>% 
+  mutate(gender = factor(gender,level=c(0:1),
+                         labels = c("female","male")))
+```
+
+## a)
+
+**Description**:
+
+The dataset is collected by an insurance company about the total cost of heart disease and other relevant events caused by heart disease. The main outcome is total cost from the heart disease (`totalcost`), and the main predictor is the number of emergency room (ER) visits (`e_rvisits`). There are other important variables like `age` and `gender` of subject, total number of interventions carried out(`interventions`), the number of tracked drugs (`drugs`), the number of other complications arose due to other disease instead of heart disease (`complications`), the number of other disease during the period (`comorbidities`), the number of days of treated duration (`duration`).
+
+Descriptive statistics
+```{r}
+ sum_data  <-  arsenal::tableby( ~ totalcost + age + gender +
+                                        interventions + drugs+
+                                        e_rvisits+complications+
+                                         comorbidities+duration, 
+                                data  = heart,
+                                test  = FALSE, 
+                                total = FALSE,
+                                numeric.stats = c("meansd" ,"medianq1q3","range" ) )
+ summary(sum_data,text = TRUE)
+```
+
+## b)
+```{r}
+heart %>% 
+  ggplot(aes(totalcost,..density..))+
+ geom_histogram(binwidth = 1700)+
+ geom_line(stat = 'Density',size = 1)+
+    labs(x = "Total cost",
+         title = "Plot 1  Distribution of total cost")
+```
+
+Different transformation
+```{r}
+
+```
+
