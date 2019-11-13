@@ -103,7 +103,7 @@ Descriptive statistics
 ```{r}
 heart %>% 
   ggplot(aes(totalcost,..density..))+
- geom_histogram(binwidth = 1700)+
+ geom_histogram()+
  geom_line(stat = 'Density',size = 1)+
     labs(x = "Total cost",
          title = "Plot 1  Distribution of total cost")
@@ -111,6 +111,86 @@ heart %>%
 
 Different transformation
 ```{r}
+heart_log = 
+ heart %>% 
+  mutate(log_totalcost = log(totalcost))
+
+heart_log %>% 
+  ggplot(aes(log_totalcost,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'Density',size = 1)+
+    labs(x = "Total cost",
+         title = "Plot 2  Distribution of transformed total cost")
+```
+
+## c)
+```{r}
+heart_log_bin = 
+heart_log %>% 
+  mutate(comp_bin = 
+           case_when(
+      complications == 0 ~ 0,
+      complications > 0 ~ 1))
+```
+
+## d)
+```{r}
+heart_log_bin %>% 
+  mutate(log_totalcost = log(totalcost)) %>% 
+ggplot(aes(y = log_totalcost, x = e_rvisits))+
+  geom_point()
+```
+
+```{r}
+heart_fill = 
+heart_log_bin %>% 
+  filter(log_totalcost >= 0 )
+
+fit = lm(log_totalcost ~ e_rvisits,heart_fill)
+summary(fit)
+```
+
+## e)
+
+### i)
+```{r}
+reg2 = lm(log_totalcost ~ e_rvisits + factor(comp_bin),heart_fill)
+summary(reg2)
+
+coef_after = summary(reg2)$coefficients[2,1]
+```
+
+`comp_bin` is an effect modifier because the p-value of coefficient of `comp_bin` in "having complication level" is significantly small at 0.05 significant level, which means we should reject the null and conclude that there is a significant difference between 
+
+### ii)
+```{r}
+reg1 = lm(log_totalcost ~ e_rvisits ,heart_fill)
+summary(reg1)
+
+coef_before = summary(reg1)$coefficients[2,1]
+```
+```{r}
+rate = (coef_after - coef_before)/coef_before
+ rate > 0.1 
 
 ```
 
+Since the changing rate of coefficient of `ERvisits` is smaller than 10% after putting the `comp_bin` into model, the `comp_bin` is not a confounder between `total cost` and `ERvisits`.
+
+### iii)
+```{r}
+anova(reg1,reg2)
+```
+
+We reject the null and conclude that model with `comp_bin` is superior, so it is DXXXable to add `comp_bin` variable into the model.
+
+## f)
+```{r}
+reg_m = lm(log_totalcost ~ e_rvisits + age + gender + duration, heart_fill)
+summary(reg_m)
+```
+
+
+### ii) 
+
+I will use the MLR to address the interest problem of investigator. In the MLR, the coefficient of main predictor (`ERvisits`) is more precise due to the adjustment of other covariates, which may bias the reslut.
