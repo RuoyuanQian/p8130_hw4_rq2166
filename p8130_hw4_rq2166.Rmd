@@ -32,6 +32,27 @@ fit = lm(glia_neuron_ratio ~ ln_brain_mass,brain_non)
 summary(fit)
 ```
 
+Calculate by hand
+```{r}
+x_bar = mean(brain_non$ln_brain_mass)
+y_bar = mean(brain_non$glia_neuron_ratio)
+
+sum_x = sum(brain_non$ln_brain_mass)
+sum_y = sum(brain_non$glia_neuron_ratio)
+
+n = length(brain_non$ln_brain_mass)
+
+
+
+sum_x_y = sum((brain_non$ln_brain_mass-x_bar)*
+                (brain_non$glia_neuron_ratio-y_bar))
+sum_x_2 = sum((brain_non$ln_brain_mass-x_bar)^2)
+
+b1 = sum_x_y/sum_x_2
+
+b0 = y_bar - b1*x_bar
+```
+
 ## b)
 ```{r}
 coef = summary(fit)$coefficients[2,1]
@@ -45,6 +66,15 @@ ln_brain_mass_human =
 
 glia_human = coef*ln_brain_mass_human + err
 ```
+
+Calculate by hand
+```{r}
+b1_round = round(sum_x_y/sum_x_2,5)
+b0_round = round(y_bar - b1*x_bar,5)
+
+glia_human_diy = b0_round + ln_brain_mass_human*b1_round
+```
+
 ## c)
  using PI
  
@@ -66,6 +96,41 @@ human_PI_upr = PI_all[[1,5]]
 human_PI_upr > brain_human$glia_neuron_ratio
 ```
 
+Calculate by hand
+```{r}
+x_bar = mean(brain_non$ln_brain_mass)
+y_bar = mean(brain_non$glia_neuron_ratio)
+
+sum_x = sum(brain_non$ln_brain_mass)
+sum_y = sum(brain_non$glia_neuron_ratio)
+
+n = length(brain_non$ln_brain_mass)
+
+
+
+sum_x_y = sum((brain_non$ln_brain_mass-x_bar)*
+                (brain_non$glia_neuron_ratio-y_bar))
+sum_x_2 = sum((brain_non$ln_brain_mass-x_bar)^2)
+
+b1 = sum_x_y/sum_x_2
+
+b0 = y_bar - b1*x_bar
+
+sum_y_2 = sum((brain_non$glia_neuron_ratio-y_bar)^2)
+
+glia_original = 
+  brain_non %>% 
+  pull(glia_neuron_ratio)
+
+y_hat = coef*glia_original + err
+
+MSE = sum((glia_original-y_hat)^2)/(n-2)
+
+se = sqrt(MSE*(1/n+((ln_brain_mass_human-x_bar)^2/sum_x_2)+1))
+ sqrt(MSE*(1/n+((ln_brain_mass_human-x_bar)^2/sum_x_2)))
+
+glia_human + qt(0.975,n-2) * se
+```
 Yes, the upper bound of prediction for glia_neuron_ratio of human is smaller than the observed value, which means the human brain has excessive glia_neuron_ratio than other specise. 
 
 ## e) 
