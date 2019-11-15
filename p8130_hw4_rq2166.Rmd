@@ -2,7 +2,7 @@
 title: " p8130_hw4_rq2166"
 author: "Ruoyuan Qian"
 date: "2019/11/12"
-output: word_document
+output: github_document
 editor_options: 
   chunk_output_type: inline
 ---
@@ -14,6 +14,8 @@ library(readxl)
 library(dplyr)
 library(arsenal)
 library(ggplot2)
+library(ggpubr)
+library(Rmisc)
 ```
 
 # Problem 3
@@ -87,8 +89,11 @@ brain_human =
 pred_fit <- predict.lm(fit, interval="prediction") 
 PI_all <- data.frame(cbind(brain$ln_brain_mass,
                            brain$glia_neuron_ratio,
-                           pred_fit))
-
+                           pred_fit)) %>% 
+                      filter(V1 == 7.22)
+PI_all
+```
+```{r}
 human_PI_lwr = PI_all[[1,4]]
 human_PI_upr = PI_all[[1,5]]
 
@@ -130,6 +135,10 @@ se = sqrt(MSE*(1/n+((ln_brain_mass_human-x_bar)^2/sum_x_2)+1))
  sqrt(MSE*(1/n+((ln_brain_mass_human-x_bar)^2/sum_x_2)))
 
 glia_human + qt(0.975,n-2) * se
+
+MSE = 0.1699^2
+
+
 ```
 Yes, the upper bound of prediction for glia_neuron_ratio of human is smaller than the observed value, which means the human brain has excessive glia_neuron_ratio than other specise. 
 
@@ -144,8 +153,7 @@ Compared to data of other species, human data is considered to be an outlier and
 heart = read_csv("data\\HeartDisease.csv") %>% 
    janitor::clean_names() %>% 
   mutate(gender = factor(gender,level=c(0:1),
-                         labels = c("female","male")),
-         complications = factor(complications))
+                         labels = c("female","male")))
 ```
 
 ## a)
@@ -186,13 +194,21 @@ heart_log =
  heart %>% 
   mutate(log_totalcost = log(totalcost))
 
+density =
 heart_log %>% 
   ggplot(aes(log_totalcost,..density..))+
  geom_histogram()+
  geom_line(stat = 'Density',size = 1)+
-    labs(x = "Total cost",
-         title = "Plot 2  Distribution of transformed total cost")+
-   theme(plot.title = element_text(hjust = 0.5))
+    labs(x = "Total cost")
+qq = 
+heart_log %>% 
+  pull(log_totalcost) %>% 
+ggqqplot(main="Q-Q plot for total cost")
+
+
+multiplot(
+          density,qq,
+          cols=2)
 ```
 
 ## c)
@@ -201,8 +217,10 @@ heart_log_bin =
 heart_log %>% 
   mutate(comp_bin = 
            case_when(
-      complications == 0 ~ 0,
-      complications > 0 ~ 1))
+      complications == 0 ~ "0",
+      complications != 0 ~ "1"))
+
+table(heart_log_bin$comp_bin)/length(heart_log_bin$comp_bin)
 ```
 
 ## d)
@@ -226,14 +244,25 @@ fit = lm(log_totalcost ~ e_rvisits,heart_fill)
 summary(fit)
 ```
 
+```{r}
+qt(0.975,783)
+
+p_value = 2*(1-pt(9.46,783))
+
+y_unit = exp(0.22672)
+```
+
 ## e)
 
 ### i)
 ```{r}
-reg2 = lm(log_totalcost ~ e_rvisits + factor(comp_bin),heart_fill)
+reg2 = lm(log_totalcost ~ e_rvisits + factor(comp_bin) + e_rvisits*factor(comp_bin),heart_fill)
 summary(reg2)
 
 coef_after = summary(reg2)$coefficients[2,1]
+```
+```{r}
+qt(0.975,781)
 ```
 
 `comp_bin` is an effect modifier because the p-value of coefficient of `comp_bin` in "having complication level" is significantly small at 0.05 significant level, which means we should reject the null and conclude that there is a significant difference between 
@@ -241,12 +270,18 @@ coef_after = summary(reg2)$coefficients[2,1]
 ### ii)
 ```{r}
 reg1 = lm(log_totalcost ~ e_rvisits ,heart_fill)
+
 summary(reg1)
 
+reg2 = lm(log_totalcost ~ e_rvisits + factor(comp_bin) ,heart_fill)
+
+summary(reg2)
+
 coef_before = summary(reg1)$coefficients[2,1]
+coef_after = summary(reg2)$coefficients[2,1]
 ```
 ```{r}
-rate = (coef_after - coef_before)/coef_before
+rate = abs(coef_after - coef_before)/coef_before
  rate > 0.1 
 
 ```
@@ -256,6 +291,8 @@ Since the changing rate of coefficient of `ERvisits` is smaller than 10% after p
 ### iii)
 ```{r}
 anova(reg1,reg2)
+
+qf(0.95,1,783)
 ```
 
 We reject the null and conclude that model with `comp_bin` is superior, so it is DXXXable to add `comp_bin` variable into the model.
@@ -264,7 +301,7 @@ We reject the null and conclude that model with `comp_bin` is superior, so it is
 
 ### i)
 ```{r}
-reg_m = lm(log_totalcost ~ e_rvisits + age + gender + duration, heart_fill)
+reg_m = lm(log_totalcost ~ e_rvisits + factor(comp_bin) + age  + duration + gender , heart_fill)
 summary(reg_m)
 ```
 
