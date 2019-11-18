@@ -1,0 +1,296 @@
+---
+title: " p8130_hw4_rq2166"
+author: "Ruoyuan Qian"
+date: "2019/11/12"
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(arsenal)
+library(ggplot2)
+library(ggpubr)
+library(Rmisc)
+```
+
+# Problem 3
+```{r}
+brain = read_excel("data\\Brain.xlsx") %>% 
+   janitor::clean_names()
+```
+
+## a)
+```{r}
+brain_non = 
+  brain %>% 
+  filter(!(species == "Homo sapiens"))
+
+fit = lm(glia_neuron_ratio ~ ln_brain_mass,brain_non) 
+summary(fit)
+```
+
+Calculate by hand
+```{r}
+x_bar = mean(brain_non$ln_brain_mass)
+y_bar = mean(brain_non$glia_neuron_ratio)
+
+sum_x = sum(brain_non$ln_brain_mass)
+sum_y = sum(brain_non$glia_neuron_ratio)
+
+n = length(brain_non$ln_brain_mass)
+
+
+
+sum_x_y = sum((brain_non$ln_brain_mass-x_bar)*
+                (brain_non$glia_neuron_ratio-y_bar))
+sum_x_2 = sum((brain_non$ln_brain_mass-x_bar)^2)
+
+b1 = sum_x_y/sum_x_2
+
+b0 = y_bar - b1*x_bar
+```
+
+## b)
+```{r}
+coef = summary(fit)$coefficients[2,1]
+err  = summary(fit)$coefficients[1,1]
+
+ln_brain_mass_human = 
+  brain %>% 
+  filter(species == "Homo sapiens") %>% 
+  pull(ln_brain_mass)
+
+
+glia_human = coef*ln_brain_mass_human + err
+```
+
+Calculate by hand
+```{r}
+b1_round = round(sum_x_y/sum_x_2,5)
+b0_round = round(y_bar - b1*x_bar,5)
+
+glia_human_diy = b0_round + ln_brain_mass_human*b1_round
+```
+
+## c)
+ using PI
+ 
+## d)
+```{r}
+brain_human = 
+  brain %>% 
+  filter(species == "Homo sapiens")
+
+pred_fit <- predict.lm(fit, newdata = brain, interval="prediction") 
+
+PI_all <- data.frame(cbind(brain$ln_brain_mass,
+                           brain$glia_neuron_ratio,
+                           pred_fit)) %>% 
+                      filter(V1 == 7.22)
+PI_all
+
+```
+```{r}
+human_PI_lwr = PI_all[[1,4]]
+human_PI_upr = PI_all[[1,5]]
+
+
+human_PI_upr > brain_human$glia_neuron_ratio
+```
+
+
+Yes, the upper bound of prediction for glia_neuron_ratio of human is smaller than the observed value, which means the human brain has excessive glia_neuron_ratio than other specise. 
+
+## e) 
+
+
+Compared to data of other species, human data is considered to be an outlier and would affect the regression if it was used to fit the model.
+
+# Problem 4
+
+```{r}
+heart = read_csv("data\\HeartDisease.csv") %>% 
+   janitor::clean_names() %>% 
+  mutate(gender = factor(gender,level=c(0:1),
+                         labels = c("female","male")))
+```
+
+## a)
+
+**Description**:
+
+The dataset is collected by an insurance company about the total cost of heart disease and other relevant events caused by heart disease. The main outcome is total cost from the heart disease (`totalcost`), and the main predictor is the number of emergency room (ER) visits (`e_rvisits`). There are other important variables like `age` and `gender` of subject, total number of interventions carried out(`interventions`), the number of tracked drugs (`drugs`), the number of other complications arose due to other disease instead of heart disease (`complications`), the number of other disease during the period (`comorbidities`), the number of days of treated duration (`duration`).
+
+Descriptive statistics
+```{r}
+ sum_data  <-  arsenal::tableby( ~ totalcost + age + gender +
+                                        interventions + drugs+
+                                        e_rvisits+complications+
+                                         comorbidities+duration, 
+                                data  = heart,
+                                test  = FALSE, 
+                                total = FALSE,
+                                numeric.stats = c("meansd" ,"medianq1q3","range" ) )
+summ = summary(sum_data,text = TRUE)
+summ
+
+
+```
+
+## b)
+```{r}
+heart %>% 
+  ggplot(aes(totalcost,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'Density',size = 1)+
+    labs(x = "Total cost",
+         title = "Plot 1  Distribution of total cost")
+```
+
+Different transformation
+```{r}
+heart_log = 
+ heart %>% 
+  mutate(log_totalcost = log(totalcost+1))
+
+density =
+heart_log %>% 
+  ggplot(aes(log_totalcost,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'Density',size = 1)+
+    labs(x = "log(Total cost+1)")
+qq = 
+heart_log %>% 
+  pull(log_totalcost) %>% 
+ggqqplot(main="Q-Q plot for total cost")
+
+
+multiplot(
+          density,qq,
+          cols=2)
+density
+```
+
+## c)
+```{r}
+heart_log_bin = 
+heart_log %>% 
+  mutate(comp_bin = 
+           case_when(
+      complications == 0 ~ "0",
+      complications != 0 ~ "1"))
+
+table(heart_log_bin$comp_bin)/length(heart_log_bin$comp_bin)
+```
+
+## d)
+```{r}
+heart_log_bin %>% 
+  mutate(log_totalcost = log(totalcost+1)) %>% 
+ggplot(aes(y = log_totalcost, x = e_rvisits))+
+  geom_point()+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+    labs(x = "ER visits",
+         y = "log(total cost+1)",
+         title = "Plot 3  Scatter plot of log(total cost+1) and ER visits")+
+   theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+heart_fill = 
+heart_log_bin %>% 
+  filter(log_totalcost >= 0 ) 
+
+fit = lm(log_totalcost ~ e_rvisits,heart_fill)
+summary(fit)
+```
+
+```{r}
+qt(0.975,786)
+
+p_value = 2*(1-pt(9.46,786))
+
+y_unit = exp(0.22529)-1
+```
+
+## e)
+
+### i)
+```{r}
+reg = lm(log_totalcost ~ e_rvisits + factor(comp_bin) + e_rvisits*factor(comp_bin),heart_fill)
+summary(reg)
+
+coef_after = summary(reg)$coefficients[2,1]
+```
+
+```{r}
+qt(0.975,784)
+```
+
+
+```{r}
+
+heart_fill %>% 
+ggplot(aes(x = e_rvisits, y = log_totalcost,color = comp_bin)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', formula = y ~ x)+
+    labs(x = "ER visits",
+         y = "log(total cost+1)")
+```
+
+`comp_bin` is an effect modifier because the p-value of coefficient of `comp_bin` in "having complication level" is significantly small at 0.05 significant level, which means we should reject the null and conclude that there is a significant difference between 
+
+### ii)
+```{r}
+reg1 = lm(log_totalcost ~ e_rvisits ,heart_fill)
+
+summary(reg1)
+
+reg2 = lm(log_totalcost ~ e_rvisits + factor(comp_bin) ,heart_fill)
+
+summary(reg2)
+
+coef_before = summary(reg1)$coefficients[2,1]
+coef_after = summary(reg2)$coefficients[2,1]
+```
+```{r}
+rate = abs(coef_after - coef_before)/coef_before
+ rate > 0.1 
+
+```
+
+Since the changing rate of coefficient of `ERvisits` is smaller than 10% after putting the `comp_bin` into model, the `comp_bin` is not a confounder between `total cost` and `ERvisits`.
+
+### iii)
+```{r}
+anova(reg1,reg2)
+
+qf(0.95,1,785)
+```
+
+We reject the null and conclude that model with `comp_bin` is superior, so it is DXXXable to add `comp_bin` variable into the model.
+
+## f)
+
+### i)
+```{r}
+reg_m = lm(log_totalcost ~ e_rvisits + factor(comp_bin) + age  + duration + gender , heart_fill)
+summary(reg_m)
+
+exp(0.1746)-1
+```
+
+
+### ii) 
+```{r}
+anova(reg1,reg_m)
+qf(0.95,4,782)
+```
+
+
+I will use the MLR to address the interest problem of investigator. In the MLR, the coefficient of main predictor (`ERvisits`) is more precise due to the adjustment of other covariates, which may bias the reslut.
